@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+data/models/
+data/imitation/
+data/hunter_mode/
+# data/reference/ SI se versiona (catalogos pequenos, ej. zones_id.xlsx) --
+# EXCEPTO routes_zones.parquet, que es el pool de rutas candidatas (~190MB,
+# demasiado grande para git -- regenerar/copiar localmente, no versionar).
+data/reference/routes_zones.parquet
+# route_eff.parquet: eff por route_id, especifico de los route_id de ejemplo
+# de Pipeline_Candidatas_HGB (hunter_usar.zip, mayo-julio) -- copiar desde ahi.
+data/reference/route_eff.parquet

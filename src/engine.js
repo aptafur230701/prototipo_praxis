@@ -7,6 +7,28 @@ export function initApp() {
   window.__EFR_DEV = true;
 
   // ---------------------------------------------------------------------
+  // Praxis -- Decision Ledger (Capa 1): registra el vector de estado cada
+  // vez que se crea una ruta. Best-effort: si el backend no esta corriendo,
+  // solo se loguea en consola y la ruta se crea igual (no bloquea la UI).
+  // ---------------------------------------------------------------------
+  const PRAXIS_API_BASE = 'http://localhost:8000';
+
+  function praxisLogDecision(payload) {
+    fetch(PRAXIS_API_BASE + '/decisions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }).then(function (data) {
+      console.log('[Praxis] decision_record creado:', data.decision_id);
+    }).catch(function (err) {
+      console.warn('[Praxis] no se pudo registrar el vector de estado (el backend esta corriendo?):', err);
+    });
+  }
+
+  // ---------------------------------------------------------------------
   // Data
   // ---------------------------------------------------------------------
   const ROUTES = [
@@ -594,6 +616,22 @@ export function initApp() {
       }
     }
 
+    // Praxis: captura el vector de estado ANTES de generar la recomendacion.
+    const opCostEl = document.getElementById('cr-opcost-select');
+    const durationEl = document.getElementById('cr-duration-select');
+    const durationVal = (durationEl && durationEl.value) ? durationEl.value : '1-4';
+    const durationParts = durationVal.split('-');
+    const duracionMinDias = parseInt(durationParts[0], 10);
+    const duracionMaxDias = parseInt(durationParts[1], 10);
+    praxisLogDecision({
+      truck_id: unit !== 'Unassigned' ? unit : 'Unassigned',
+      origin: originVal,
+      destino_final: finalDestVal || null,
+      costo_operativo: opCostEl ? opCostEl.value : null,
+      duracion_min_dias: isNaN(duracionMinDias) ? null : duracionMinDias,
+      duracion_max_dias: isNaN(duracionMaxDias) ? null : duracionMaxDias
+    });
+
     // Read selected TMS loads
     const tmsLoads = [];
     document.querySelectorAll('.cr-load-card.cr-on').forEach(function (card) {
@@ -705,19 +743,19 @@ export function initApp() {
   window.CR_DRIVER_LIST = [
     { id: 'D001', name: 'Jeremy Davis',   avatar: 'J', color: '#2e9975', cabinId: '5017', cabinType: 'diesel', trailerId: 'TR-11047', trailerType: 'reefer'  },
     { id: 'D003', name: 'Ricardo Lopez',  avatar: 'R', color: '#8066cc', cabinId: '2201',  cabinType: 'diesel', trailerId: 'TR-44821', trailerType: 'van' },
-    { id: 'D002', name: 'Michael Murray', avatar: 'M', color: '#b28835', cabinId: null,        cabinType: null,     trailerId: null,     trailerType: null      },
+    { id: 'D002', name: 'Michael Murray', avatar: 'M', color: '#b28835', cabinId: '2058',  cabinType: 'diesel', trailerId: 'TR-11026', trailerType: 'reefer' },
     { id: 'D004', name: 'Sarah Chen',     avatar: 'S', color: '#2e5299', cabinId: null,        cabinType: null,     trailerId: null,     trailerType: null      }
   ];
   window.CR_CABIN_LIST = [
     { id: '5017', type: 'diesel', driverId: 'D001', driverName: 'Jeremy Davis',  driverAvatar: 'J', trailerId: 'TR-11047', trailerType: 'reefer',  city: 'Memphis, TN', hasLoads: true  },
     { id: '2201',  type: 'diesel', driverId: 'D003', driverName: 'Ricardo Lopez', driverAvatar: 'R', trailerId: 'TR-44821', trailerType: 'van', city: 'Houston, TX', hasLoads: false },
-    { id: '2058',      type: 'diesel', driverId: null,   driverName: null,             driverAvatar: null,trailerId: null,     trailerType: null,      city: 'Dallas, TX',  hasLoads: false },
+    { id: '2058',      type: 'diesel', driverId: 'D002',   driverName: 'Michael Murray', driverAvatar: 'M',trailerId: 'TR-11026',     trailerType: 'reefer',      city: 'Dallas, TX',  hasLoads: false },
     { id: '5016',      type: 'diesel', driverId: null,   driverName: null,             driverAvatar: null,trailerId: null,     trailerType: null,      city: 'Laredo, TX',  hasLoads: false }
   ];
   window.CR_TRAILER_LIST = [
     { id: 'TR-11047', type: 'reefer',  driverId: 'D001', driverName: 'Jeremy Davis',  driverAvatar: 'J', cabinId: '5017', cabinType: 'diesel' },
     { id: 'TR-44821', type: 'van', driverId: 'D003', driverName: 'Ricardo Lopez', driverAvatar: 'R', cabinId: '2201',  cabinType: 'diesel' },
-    { id: 'TR-11026', type: 'reefer',  driverId: null,   driverName: null,            driverAvatar: null,cabinId: null,        cabinType: null     },
+    { id: 'TR-11026', type: 'reefer',  driverId: 'D002',   driverName: 'Michael Murray', driverAvatar: 'M',cabinId: '2058',        cabinType: 'diesel'     },
     { id: 'TR-11031', type: 'reefer',  driverId: null,   driverName: null,            driverAvatar: null,cabinId: null,        cabinType: null     }
   ];
 
@@ -1246,7 +1284,7 @@ export function initApp() {
         </div>
         <div class="cr-field">
           <div class="cr-field-label">Operative cost <span class="cr-opt">Optional</span></div>
-          <select class="cr-select">
+          <select class="cr-select" id="cr-opcost-select">
             <option selected>JM_test1 — $2.00/mi</option>
             <option>No operating cost</option>
           </select>
@@ -1260,10 +1298,10 @@ export function initApp() {
         </div>
         <div class="cr-field">
           <div class="cr-field-label">Route duration <span style="color:#cc666f">*</span></div>
-          <select class="cr-select">
-            <option selected>1–4 days</option>
-            <option>5–8 days</option>
-            <option>9–12 days</option>
+          <select class="cr-select" id="cr-duration-select">
+            <option value="1-4" selected>1–4 days</option>
+            <option value="5-8">5–8 days</option>
+            <option value="9-12">9–12 days</option>
           </select>
         </div>
       </div>

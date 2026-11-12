@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 *.local
+hunter_mode.zip
+Pipeline_Candidatas_HGB/
+.venv/
